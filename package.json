@@ -6,8 +6,11 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "jest --forceExit --detectOpenHandles --verbose",
-    "test:coverage": "jest --forceExit --detectOpenHandles --coverage",
+    "test": "jest tests/unit.test.js tests/services.unit.test.js tests/middleware.unit.test.js --verbose",
+    "test:all": "jest --forceExit --detectOpenHandles --verbose",
+    "test:unit": "jest tests/unit.test.js tests/services.unit.test.js tests/middleware.unit.test.js --verbose",
+    "test:integration": "jest tests/auth.test.js tests/centres.test.js tests/bookings.test.js tests/payments.test.js --forceExit --detectOpenHandles --verbose",
+    "test:coverage": "jest tests/unit.test.js tests/services.unit.test.js tests/middleware.unit.test.js --coverage",
     "db:migrate": "npx prisma migrate dev",
     "db:push": "npx prisma db push",
     "db:seed": "node prisma/seed.js",
