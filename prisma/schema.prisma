@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ───────────────────────────────────────────────
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  fullName     String    @map("full_name")
+  passwordHash String    @map("password_hash")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  bookings     Booking[]
+
+  @@map("users")
+}
+
+// ─── Diagnostic Centres ──────────────────────────────────
+model DiagnosticCentre {
+  id          String       @id @default(uuid())
+  name        String
+  address     String
+  city        String
+  state       String
+  pincode     String
+  phone       String?
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  centreTests CentreTest[]
+
+  @@map("diagnostic_centres")
+}
+
+// ─── Diagnostic Tests (master list) ──────────────────────
+model DiagnosticTest {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  testCode    String       @unique @map("test_code")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  centreTests CentreTest[]
+
+  @@map("diagnostic_tests")
+}
+
+// ─── Centre ↔ Test association (with per-centre pricing) ─
+model CentreTest {
+  id          String           @id @default(uuid())
+  centreId    String           @map("centre_id")
+  testId      String           @map("test_id")
+  price       Decimal          @db.Decimal(10, 2)
+  isAvailable Boolean          @default(true) @map("is_available")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  centre      DiagnosticCentre @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  test        DiagnosticTest   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+
+  @@unique([centreId, testId])
+  @@map("centre_tests")
+}
+
+// ─── Booking status state machine ────────────────────────
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  centreTestId    String        @map("centre_test_id")
+  appointmentDate DateTime      @map("appointment_date")
+  amount          Decimal       @db.Decimal(10, 2)
+  status          BookingStatus @default(PENDING)
+  version         Int           @default(1)  // Optimistic locking to prevent race conditions
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  centreTest      CentreTest    @relation(fields: [centreTestId], references: [id])
+  payments        Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("bookings")
+}
+
+// ─── Payment status ──────────────────────────────────────
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  bookingId     String        @map("booking_id")
+  transactionId String        @unique @map("transaction_id")
+  amount        Decimal       @db.Decimal(10, 2)
+  status        PaymentStatus @default(PENDING)
+  paymentMethod String        @default("SIMULATED") @map("payment_method")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("payments")
+}
+
+// ─── Webhook events (for idempotency tracking) ───────────
+model WebhookEvent {
+  id          String    @id @default(uuid())
+  eventId     String    @unique @map("event_id")  // Unique event ID from payment provider
+  eventType   String    @map("event_type")
+  payload     Json
+  processed   Boolean   @default(false)
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("webhook_events")
+}
