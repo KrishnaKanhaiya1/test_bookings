@@ -239,7 +239,6 @@ Tests utilize an in-memory or localized test DB initialized before the suite, gu
 │   ├── centres.test.js      # Centres & tests catalog test suite
 │   ├── bookings.test.js     # Bookings & state transition test suite
 │   └── payments.test.js     # Payments & idempotent webhook test suite
-├── DEVELOPER_GUIDE.md       # Cheat sheet for live coding interviews & modifications
 ├── README.md                # Project documentation
 ├── Dockerfile               # Production multi-stage Docker build
 ├── docker-compose.yml       # PostgreSQL, Redis & App orchestration
