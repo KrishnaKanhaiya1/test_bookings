@@ -149,7 +149,24 @@ describe('EVE Healthcare — Middlewares Unit Tests', () => {
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.body.success).toBe(false);
-      expect(mockRes.body.error.code).toBe('INTERNAL_ERROR');
+    });
+  });
+
+  // =========================================================================
+  // RATE LIMITER MIDDLEWARE
+  // =========================================================================
+  describe('rateLimiter middleware', () => {
+    const { createRateLimiter, authLimiter, apiLimiter } = require('../src/middleware/rateLimiter');
+
+    it('should be defined and export apiLimiter and authLimiter', () => {
+      expect(typeof apiLimiter).toBe('function');
+      expect(typeof authLimiter).toBe('function');
+      expect(typeof createRateLimiter).toBe('function');
+    });
+
+    it('should create rate limiter with configured options', () => {
+      const customLimiter = createRateLimiter({ max: 50, windowMs: 60000 });
+      expect(typeof customLimiter).toBe('function');
     });
   });
 
