@@ -40,10 +40,10 @@ const apiLimiter = createRateLimiter({
   max: config.rateLimit.max,
 });
 
-/** Stricter rate limiter for sensitive authentication endpoints (5 requests per 15 minutes) */
+/** Rate limiter for authentication endpoints (stricter in prod, generous in dev/test to avoid demo lockouts) */
 const authLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: config.isProduction ? 20 : 100,
   message: 'Too many authentication attempts, please try again after 15 minutes.',
 });
 

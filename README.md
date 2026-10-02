@@ -119,7 +119,7 @@ curl http://localhost:3000/api/v1/tests
 curl -X POST http://localhost:3000/api/v1/bookings \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer <TOKEN>" \
-  -d '{"centreTestId":"<ID>","appointmentDate":"2023-12-01T10:00:00Z"}'
+  -d '{"centreTestId":"<ID>","appointmentDate":"2026-12-01T10:00:00Z"}'
 ```
 
 **List my bookings**
@@ -170,13 +170,19 @@ erDiagram
     DiagnosticTest ||--o{ CentreTest : available_at
     CentreTest ||--o{ Booking : booked_for
     Booking ||--o{ Payment : paid_via
-    WebhookEvent }|--|| Payment : triggers
+    WebhookEvent {
+        string eventId PK
+        string eventType
+        json payload
+        boolean processed
+        datetime processedAt
+    }
 ```
 
 **Key Schema Decisions:**
 1. `CentreTest` association table enables per-centre pricing.
-2. `Booking.version` field enables optimistic locking to handle concurrency.
-3. `WebhookEvent.eventId` enables idempotent webhook processing.
+2. `Booking.version` field enables optimistic locking to handle concurrency without deadlocks.
+3. `WebhookEvent.eventId` is a unique index for idempotent webhook deduplication.
 4. `Payment.transactionId` prevents duplicate payments.
 
 ## Key Design Decisions
@@ -189,11 +195,21 @@ erDiagram
 7. **Consistent Error Handling** — Central `ApiError` format + global handler simplifies client-side parsing.
 
 ## Testing
+
 ```bash
-npm test              # Run all tests
-npm run test:coverage  # Run with coverage report
+# Run unit & service test suites (51 tests in-memory, zero external DB required)
+npm test
+
+# Run test coverage report
+npm run test:coverage
+
+# Run live database integration tests against PostgreSQL
+npm run test:integration
 ```
-Tests utilize an in-memory or localized test DB initialized before the suite, guaranteeing a clean testing environment.
+
+The test suite is structured into:
+- **Unit & Service Tests (`tests/*.unit.test.js`)**: 51 comprehensive tests running in-memory with mocked database states, covering domain invariants, business rules, status state machines, and webhook idempotency without requiring external services.
+- **Integration Tests (`tests/auth.test.js`, etc.)**: End-to-end HTTP tests validating Supertest requests against a live PostgreSQL database (`DATABASE_URL_TEST`).
 
 ## Important Assumptions
 1. Payment simulation uses an approximate 70% success rate on initiation.
@@ -201,7 +217,7 @@ Tests utilize an in-memory or localized test DB initialized before the suite, gu
 3. Only PENDING bookings can be cancelled or paid.
 4. Prices are copied into the `Booking` at creation time (price snapshot against changes).
 5. A single user can have multiple concurrent bookings.
-6. The webhook signature is generated via HMAC-SHA256 of the raw JSON body payload.
+6. The webhook signature is generated via HMAC-SHA256 using WEBHOOK_SECRET over the serialized JSON payload ({ eventId, eventType, transactionId, status, bookingId }).
 
 ## What I Would Improve With More Time
 1. Add email/SMS notifications on booking confirmation.
